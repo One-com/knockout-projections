@@ -356,13 +356,9 @@ See the Apache Version 2.0 License for specific language governing permissions a
         return observableArrayMap.call(this, ko, mappingOptions);
     }
 
+    // Sorting
     function sortingKeysEquals(aSortKeys, bSortKeys) {
         var Descending = SortByProjection.Descending;
-        if (!Array.isArray(aSortKeys)) {
-            aSortKeys = [aSortKeys];
-            bSortKeys = [bSortKeys];
-        }
-
         var aSortKey, bSortKey;
 
         for (var i = 0; i < aSortKeys.length; i += 1) {
@@ -386,21 +382,18 @@ See the Apache Version 2.0 License for specific language governing permissions a
     }
 
     function compareSortingKeys(aSortKeys, bSortKeys) {
-        var Descending = SortByProjection.Descending;
-        if (!Array.isArray(aSortKeys)) {
-            aSortKeys = [aSortKeys];
-            bSortKeys = [bSortKeys];
-        }
-
+        var Descending = SortByProjection.Descending, isDecending;
         var aSortKey, bSortKey;
-
         for (var i = 0; i < aSortKeys.length; i += 1) {
             aSortKey = aSortKeys[i];
             bSortKey = bSortKeys[i];
-            if (aSortKey instanceof Descending) {
-                if (aSortKey.value > bSortKey.value) {
+            isDecending = aSortKey instanceof Descending;
+            aSortKey = aSortKey instanceof Descending ? aSortKey.value : aSortKey;
+            bSortKey = bSortKey instanceof Descending ? bSortKey.value : bSortKey;
+            if (isDecending) {
+                if (aSortKey > bSortKey) {
                     return -1;
-                } else if (aSortKey.value < bSortKey.value) {
+                } else if (aSortKey < bSortKey) {
                     return 1;
                 }
             } else {
@@ -414,43 +407,13 @@ See the Apache Version 2.0 License for specific language governing permissions a
         return 0;
     }
 
-    // Sorting
-    function mappingToComparefn(mapping) {
-        var Descending = SortByProjection.Descending;
-        return function (a, b) {
-            var aSortKeys = mapping(a, Descending.create);
-            var bSortKeys = mapping(b, Descending.create);
-            return compareSortingKeys(aSortKeys, bSortKeys);
-        };
-    }
-
-    function binarySearch(items, item, comparefn) {
-        var left = -1,
-            right = items.length,
-            mid;
-
-        while (right - left > 1) {
-            mid = (left + right) >>> 1;
-            var c = comparefn(items[mid], item);
-            if (c < 0) {
-                left = mid;
-            } else {
-                right = mid;
-                if (!c) {
-                    break;
-                }
-            }
-        }
-        return (right === items.length || comparefn(items[right], item)) ? -right - 1 : right;
-    }
-
-    function findInsertionIndex(items, newItem, comparefn) {
+    function findInsertionIndex(items, newItem) {
         var left = -1,
             right = items.length,
             mid;
         while (right - left > 1) {
             mid = (left + right) >>> 1;
-            if (comparefn(items[mid], newItem) < 0) {
+            if (compareSortingKeys(items[mid].previousMappedValue, newItem.previousMappedValue) < 0) {
                 left = mid;
             } else {
                 right = mid;
@@ -460,47 +423,63 @@ See the Apache Version 2.0 License for specific language governing permissions a
     }
 
     function binaryIndexOf(items, item, comparefn) {
-        var index = binarySearch(items, item, comparefn);
-        if (index < 0 || items.length <= index || comparefn(items[index], item) !== 0) {
-            return -1;
-        } else {
-            var startIndex = index;
-            // find the first index of an item that looks like the item
-            while (index - 1 >= 0 && comparefn(items[index - 1], item) === 0) {
-                index -= 1;
-            }
+        var left = -1,
+            right = items.length,
+            mid,
+            c;
 
-            // find the index of the item
-            while (index <= startIndex) {
-                if (items[index] === item) {
-                    return index;
+        while (right - left > 1) {
+            mid = (left + right) >>> 1;
+            c = comparefn(items, mid, item);
+            if (c < 0) {
+                left = mid;
+            } else {
+                right = mid;
+                if (!c) {
+                    break;
                 }
-                index += 1;
             }
+        }
 
-            while (index < items.length) {
-                if (comparefn(items[index], item) !== 0) {
-                    return -1;
-                }
-                if (items[index] === item) {
-                    return index;
-                }
+        return (right === items.length || c) ? -1 : right;
+    }
 
-                index += 1;
+    function decrementInputIndexMaps(inputIndexMap, stateItems, inputIndex, reduction, maxInputIndex) {
+        for(var i = 0; i < inputIndexMap.length; ++i) {
+            var currentInputIndex = inputIndexMap[i];
+            if(((typeof maxInputIndex === 'number' && currentInputIndex <= maxInputIndex) || typeof maxInputIndex !== 'number') && currentInputIndex >= inputIndex) {
+                var stateItem = stateItems[i];
+                inputIndexMap[i] = currentInputIndex - reduction;
+                stateItem.updateInputIndex(currentInputIndex - reduction);
             }
-
-            return -1;
         }
     }
 
-    function SortedStateItem(projection, inputItem) {
+    function incrementInputIndexMaps(inputIndexMap, stateItems, inputIndex, minInputIndex) {
+        for(var i = 0; i < inputIndexMap.length; ++i) {
+            var currentInputIndex = inputIndexMap[i];
+            if(((typeof minInputIndex === 'number' && currentInputIndex <= minInputIndex) || typeof minInputIndex !== 'number') && currentInputIndex >= inputIndex) {
+                var stateItem = stateItems[i];
+                inputIndexMap[i] = currentInputIndex + 1;
+                stateItem.updateInputIndex(currentInputIndex + 1);
+            }
+        }
+    }
+
+    function SortedStateItem(projection, inputItem, inputIndex, mock) {
         var ko = projection.ko;
         this.projection = projection;
         this.inputItem = inputItem;
+        this.inputIndex = inputIndex;
+        this.mock = !!mock;
 
         this.mappedValueComputed = ko.computed(this.mappingEvaluator, this);
         this.mappedValueComputed.subscribe(this.onMappingResultChanged, this);
         this.previousMappedValue = this.mappedValueComputed.peek();
+
+        if (this.mock) {
+            this.dispose();
+        }
     }
 
     SortedStateItem.prototype.dispose = function() {
@@ -511,50 +490,77 @@ See the Apache Version 2.0 License for specific language governing permissions a
         }
     };
 
-    SortedStateItem.prototype.mappingEvaluator = function() {
-        return this.projection.mapping(this.inputItem, SortByProjection.Descending.create);
+    SortedStateItem.prototype.mappingEvaluator = function(mock) {
+        var mockRequest = (this.mock || !!mock);
+        var mappingResult = this.projection.mapping(this.inputItem, SortByProjection.Descending.create, mockRequest);
+
+        if (!Array.isArray(mappingResult)) {
+            mappingResult = [mappingResult];
+        }
+        mappingResult.push(this.inputIndex);
+
+        return mappingResult;
     };
 
     SortedStateItem.prototype.onMappingResultChanged = function (newValue) {
-        if (!sortingKeysEquals(newValue, this.previousMappedValue)) {
-            var projection = this.projection;
-            var outputObservable = projection.outputObservable;
-            var outputArray = outputObservable.peek();
-            var stateItems = projection.stateItems;
-            var oldIndex = binaryIndexOf(stateItems, this, mappingToComparefn(function (stateItem) {
-                return stateItem.previousMappedValue;
-            }));
-
-            if (stateItems[oldIndex] === this) {
-                outputObservable.valueWillMutate();
-                // It seems the sort order of the underlying array is still usable
-                outputArray.splice(oldIndex, 1);
-                stateItems.splice(oldIndex, 1);
-
-                var index = findInsertionIndex(outputArray, this.inputItem, projection.comparefn);
-                outputArray.splice(index, 0, this.inputItem);
-                stateItems.splice(index, 0, this);
-
-                this.previousMappedValue = newValue;
-                outputObservable.valueHasMutated();
-            } else {
-                var ko = projection.ko;
-                ko.utils.arrayForEach(stateItems, function (stateItem) {
-                    stateItem.previousMappedValue = stateItem.mappingEvaluator();
-                });
-
-                // The underlying array needs to be recalculated from scratch
-                stateItems.sort(mappingToComparefn(function (stateItem) {
-                    return stateItem.previousMappedValue;
-                }));
-
-                outputArray = [];
-                ko.utils.arrayForEach(stateItems, function (stateItem) {
-                    outputArray.push(stateItem.inputItem);
-                });
-                outputObservable(outputArray);
-            }
+        if (sortingKeysEquals(this.previousMappedValue, newValue)) {
+            return;
         }
+
+        var projection = this.projection;
+        var outputObservable = projection.outputObservable;
+        var outputArray = outputObservable.peek();
+        var stateItems = projection.stateItems;
+        var inputIndexMap = projection.inputIndexMap;
+        var oldIndex = binaryIndexOf(stateItems, this, projection.comparefn);
+
+        //If we changed sort direction the old index will not be found
+        var sortDirectionChanged = (stateItems[oldIndex] !== this);
+        var sortParameterCountChanged = (this.previousMappedValue.length !== newValue.length);
+
+        //When changing sort direction or adding/removing sort parameters we need to resort the entire array
+        if (sortDirectionChanged || sortParameterCountChanged) {
+            var ko = projection.ko;
+            ko.utils.arrayForEach(stateItems, function (stateItem) {
+                stateItem.previousMappedValue = stateItem.mappingEvaluator();
+            });
+
+            // The underlying array needs to be recalculated from scratch
+            stateItems.sort(function(aStateItem, bStateItem) {
+                return compareSortingKeys(aStateItem.previousMappedValue, bStateItem.previousMappedValue);
+            });
+
+            outputArray = [];
+            inputIndexMap = [];
+            ko.utils.arrayForEach(stateItems, function (stateItem) {
+                outputArray.push(stateItem.inputItem);
+                inputIndexMap.push(stateItem.inputIndex);
+            });
+            projection.inputIndexMap = inputIndexMap;
+            outputObservable(outputArray);
+        } else {
+            outputObservable.valueWillMutate();
+
+            // It seems the sort order of the underlying array is still usable
+            inputIndexMap.splice(oldIndex, 1);
+            outputArray.splice(oldIndex, 1);
+            stateItems.splice(oldIndex, 1);
+
+            this.previousMappedValue = newValue;
+
+            var index = findInsertionIndex(stateItems, this);
+            inputIndexMap.splice(index, 0, this.inputIndex);
+            outputArray.splice(index, 0, this.inputItem);
+            stateItems.splice(index, 0, this);
+
+            outputObservable.valueHasMutated();
+        }
+    };
+
+    SortedStateItem.prototype.updateInputIndex = function(inputIndex) {
+        this.inputIndex = inputIndex;
+        this.previousMappedValue.pop();
+        this.previousMappedValue.push(inputIndex);
     };
 
     function SortByProjection(ko, inputObservableArray, options) {
@@ -563,16 +569,22 @@ See the Apache Version 2.0 License for specific language governing permissions a
         this.options = options;
 
         this.mapping = options.mapping;
-        this.comparefn = mappingToComparefn(this.mapping);
+        this.inputIndexMap = [];
 
-        this.stateItems = ko.utils.arrayMap(inputObservableArray.peek(), function (inputItem) {
-            return new SortedStateItem(that, inputItem);
+        this.comparefn = function(stateItems, index, thisStateItem) {
+            return compareSortingKeys(stateItems[index].previousMappedValue, thisStateItem.previousMappedValue);
+        };
+
+        this.stateItems = ko.utils.arrayMap(inputObservableArray.peek(), function (inputItem, inputIndex) {
+            return new SortedStateItem(that, inputItem, inputIndex);
         });
-        this.stateItems.sort(function (a, b) {
-            return compareSortingKeys(a.mappedValueComputed(), b.mappedValueComputed());
+
+        this.stateItems.sort(function(aStateItem, bStateItem) {
+            return compareSortingKeys(aStateItem.previousMappedValue, bStateItem.previousMappedValue);
         });
 
         this.outputObservable = ko.observable(ko.utils.arrayMap(this.stateItems, function (stateItem) {
+            that.inputIndexMap.push(stateItem.inputIndex);
             return stateItem.inputItem;
         }));
 
@@ -593,6 +605,7 @@ See the Apache Version 2.0 License for specific language governing permissions a
             ko.utils.arrayForEach(that.stateItems, function(stateItem) {
                 stateItem.dispose();
             });
+            that.inputIndexMap = [];
             originalDispose.call(this, arguments);
         };
 
@@ -615,52 +628,95 @@ See the Apache Version 2.0 License for specific language governing permissions a
 
         this.outputObservable.valueWillMutate();
 
-        var that = this;
+        var projection = this;
         var ko = this.ko;
-        var addQueue = [];
-        var deleteQueue = [];
+        var outputArray = this.outputObservable.peek();
+        var stateItems = this.stateItems;
+        var inputIndexMap = this.inputIndexMap;
+        var deletionCounter = 0;
+        var deleteArray = [];
+        var addArray = [];
+        var moved = {};
         ko.utils.arrayForEach(diff, function (diffEntry) {
-            if (typeof diffEntry.moved !== 'number') {
-                switch (diffEntry.status) {
-                case 'added':
-                    addQueue.push(diffEntry);
-                    break;
-                case 'deleted':
-                    deleteQueue.push(diffEntry);
-                    break;
+            if (diffEntry.status === 'added') {
+                addArray.push(diffEntry);
+            } else if (diffEntry.status === 'deleted') {
+                deleteArray.push(diffEntry);
+            }
+        });
+        ko.utils.arrayForEach(deleteArray, function (diffEntry, diffEntryIndex) {
+            var nextDiff = deleteArray[diffEntryIndex + 1];
+            var nextDeletesNextIndex = nextDiff && nextDiff.index === (diffEntry.index + 1);
+
+            var stateItemToDelete = new SortedStateItem(projection, diffEntry.value, diffEntry.index, true);
+            var indexToDelete = binaryIndexOf(stateItems, stateItemToDelete, projection.comparefn);
+
+            //TODO be nice to know this scenario in advance rather than using this fallback (if at all possible)
+            if (indexToDelete < 0) {
+                // If the source array has/is a filter projection, an item may be being removed because a property 
+                // used in the filter projection updated. If we're sorting using that same property in this sortBy
+                // its mapped value will not have re-evaluated yet and will not match our stored previousMappedValue. 
+                // Hence we need to compare it to a current mapping evaluations.
+                indexToDelete = binaryIndexOf(stateItems, stateItemToDelete, function(stateItems, index, stateItemToDelete) {
+                    return compareSortingKeys(stateItems[index].mappingEvaluator(true), stateItemToDelete.previousMappedValue);
+                });
+            }
+            if (indexToDelete >= 0) {
+                if(typeof diffEntry.moved === 'number') {
+                    moved[diffEntry.moved] = stateItems[indexToDelete];
+                } else {
+                    stateItems[indexToDelete].dispose();
+                }
+                inputIndexMap.splice(indexToDelete, 1);
+                outputArray.splice(indexToDelete, 1);
+                stateItems.splice(indexToDelete, 1);
+
+                ++deletionCounter;
+
+                // If the next change deletes the very next inputIndex then don't update the following indexes
+                if (!nextDeletesNextIndex) {
+                    // If there's more to delete after this
+                    if(nextDiff) {
+                        // Only update indexes for the items in between this and the next deletion
+                        decrementInputIndexMaps(inputIndexMap, stateItems, stateItemToDelete.inputIndex, deletionCounter, nextDiff.index - 1);
+                    } else {
+                        // We're at the end of all deletions so update indexes to the end
+                        decrementInputIndexMaps(inputIndexMap, stateItems, stateItemToDelete.inputIndex, deletionCounter);
+                    }
                 }
             }
         });
 
-        var outputArray = this.outputObservable.peek();
-        ko.utils.arrayForEach(deleteQueue, function (diffEntry) {
-            var index = binaryIndexOf(outputArray, diffEntry.value, that.comparefn);
-            if (index !== -1) {
-                outputArray.splice(index, 1);
-                that.stateItems[index].dispose();
-                that.stateItems.splice(index, 1);
-            }
-        });
-
-        if (deleteQueue.length === 0 && this.stateItems.length === 0) {
+        if (deleteArray.length === 0 && stateItems.length === 0) {
             // Adding to an empty array
-            this.stateItems = ko.utils.arrayMap(addQueue, function (diffEntry) {
-                return new SortedStateItem(that, diffEntry.value);
+            stateItems = ko.utils.arrayMap(addArray, function (diffEntry) {
+                return new SortedStateItem(projection, diffEntry.value, diffEntry.index);
             });
 
-            this.stateItems.sort(function (a, b) {
-                return compareSortingKeys(a.mappedValueComputed(), b.mappedValueComputed());
+            stateItems.sort(function(aStateItem, bStateItem) {
+                return compareSortingKeys(aStateItem.previousMappedValue, bStateItem.previousMappedValue);
             });
 
-            ko.utils.arrayForEach(this.stateItems, function (stateItem) {
+            ko.utils.arrayForEach(stateItems, function (stateItem) {
                 outputArray.push(stateItem.inputItem);
+                inputIndexMap.push(stateItem.inputIndex);
             });
         } else {
-            ko.utils.arrayForEach(addQueue, function (diffEntry) {
-                var index = findInsertionIndex(outputArray, diffEntry.value, that.comparefn);
-                var stateItem = new SortedStateItem(that, diffEntry.value);
-                outputArray.splice(index, 0, stateItem.inputItem);
-                that.stateItems.splice(index, 0, stateItem);
+            ko.utils.arrayForEach(addArray, function (diffEntry) {
+                var stateItemToInsert;
+                if(typeof diffEntry.moved === 'number') {
+                    stateItemToInsert = moved[diffEntry.index];
+                    stateItemToInsert.updateInputIndex(diffEntry.index);
+                } else {
+                    stateItemToInsert = new SortedStateItem(projection, diffEntry.value, diffEntry.index);
+                }
+                var indexToInsertAt = findInsertionIndex(stateItems, stateItemToInsert);
+
+                incrementInputIndexMaps(inputIndexMap, stateItems, stateItemToInsert.inputIndex);
+
+                inputIndexMap.splice(indexToInsertAt, 0, stateItemToInsert.inputIndex);
+                outputArray.splice(indexToInsertAt, 0, stateItemToInsert.inputItem);
+                stateItems.splice(indexToInsertAt, 0, stateItemToInsert);
             });
         }
 
