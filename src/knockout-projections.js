@@ -384,6 +384,11 @@ See the Apache Version 2.0 License for specific language governing permissions a
     function compareSortingKeys(aSortKeys, bSortKeys) {
         var Descending = SortByProjection.Descending, isDecending;
         var aSortKey, bSortKey;
+
+        if(aSortKeys.length !== bSortKeys.length) {
+            throw 'Cannot compare sort keys of different lengths';
+        }
+
         for (var i = 0; i < aSortKeys.length; i += 1) {
             aSortKey = aSortKeys[i];
             bSortKey = bSortKeys[i];
