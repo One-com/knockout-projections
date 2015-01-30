@@ -322,9 +322,13 @@ See the Apache Version 2.0 License for specific language governing permissions a
         // If the input array changes structurally (items added or removed), update the outputs
         var inputArraySubscription = respondToArrayStructuralChanges(ko, inputObservableArray, arrayOfState, outputArray, outputObservableArray, mappingOptions);
 
+        var outputComputed = outputObservableArray;
+        if ('throttle' in mappingOptions) {
+            outputComputed = ko.pureComputed(outputObservableArray).extend({ throttle: mappingOptions.throttle });
+        }
         // Return value is a readonly computed which can track its own changes to permit chaining.
         // When disposed, it cleans up everything it created.
-        var returnValue = ko.pureComputed(outputObservableArray).extend({ trackArrayChanges: true }),
+        var returnValue = ko.pureComputed(outputComputed).extend({ trackArrayChanges: true }),
             originalDispose = returnValue.dispose;
         returnValue.dispose = function() {
             inputArraySubscription.dispose();
@@ -342,9 +346,17 @@ See the Apache Version 2.0 License for specific language governing permissions a
 
     // Filtering
     function observableArrayFilter(ko, predicate) {
-        return observableArrayMap.call(this, ko, function(item) {
+        // Shorthand syntax - just pass a function instead of an options object
+        if (typeof mappingOptions === 'function') {
+            mappingOptions = { mapping: mappingOptions };
+        }
+        var predicate = mappingOptions.mapping;
+
+        mappingOptions.mapping = function(item) {
             return predicate(item) ? item : exclusionMarker;
-        });
+        };
+
+        return observableArrayMap.call(this, ko, mappingOptions);
     }
 
     function sortingKeysEquals(aSortKeys, bSortKeys) {
