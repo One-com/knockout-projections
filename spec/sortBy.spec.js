@@ -161,6 +161,14 @@
                 this.isBefore1900 = ko.pureComputed(function () {
                     return that.yearOfBirth() < 1900;
                 });
+
+                this.isEvenYear = ko.pureComputed(function () {
+                    return (that.yearOfBirth() % 2) === 0;
+                });
+
+                this.isBefore1930 = ko.pureComputed(function () {
+                    return that.yearOfBirth() < 1930;
+                });
             }
 
             Person.prototype.jasmineToString = function () {
@@ -302,7 +310,231 @@
 
                 it('maintains sort order when changing to ascending sort direction', function () {
                     sortDirection(1);
+                    expect(variableSortedArray()).toEqual(sorted(sampleData, variablecomparefn));
+                });
+            });
+            
+            describe('when the sort properties can change starting with an unsorted array', function () {
+                var variableSortedArray, variablecomparefn, 
+                addSortProperty, removeSortProperty, swapSortPropertyOrder;
 
+                beforeEach(function () {
+                    removeSortProperty = ko.observable(true);
+                    addSortProperty = ko.observable(false);
+                    swapSortPropertyOrder = ko.observable(false);
+
+                    variablecomparefn = function (a, b) {
+                        if (removeSortProperty()) {    
+                            if (addSortProperty()) {
+                                if (a.name() < b.name()) {
+                                    return -1;
+                                } else if (a.name() > b.name()) {
+                                    return 1;
+                                }
+                            }
+                        } else if (addSortProperty()) {
+                            if (swapSortPropertyOrder()) {
+                                if (a.name() < b.name()) {
+                                    return -1;
+                                } else if (a.name() > b.name()) {
+                                    return 1;
+                                }
+                                
+                                if (a.yearOfBirth() < b.yearOfBirth()) {
+                                    return -1;
+                                } else if (a.yearOfBirth() > b.yearOfBirth()) {
+                                    return 1;
+                                }
+                            } else {
+                                if (a.yearOfBirth() < b.yearOfBirth()) {
+                                    return -1;
+                                } else if (a.yearOfBirth() > b.yearOfBirth()) {
+                                    return 1;
+                                }
+
+                                if (a.name() < b.name()) {
+                                    return -1;
+                                } else if (a.name() > b.name()) {
+                                    return 1;
+                                }
+                            }
+                        } else {
+                            if (a.yearOfBirth() < b.yearOfBirth()) {
+                                return -1;
+                            } else if (a.yearOfBirth() > b.yearOfBirth()) {
+                                return 1;
+                            }
+                        }
+
+                        return 0;
+                    }
+
+                    variableSortedArray = sourceArray.sortBy(function(person) {
+                        var sort = [];
+                        
+                        if (removeSortProperty()) {    
+                            if (addSortProperty()) {
+                                sort.push(person.name());
+                            }
+                        } else if (addSortProperty()) {
+                            if (swapSortPropertyOrder()) {
+                                sort.push(person.name());
+                                sort.push(person.yearOfBirth());
+                            } else {
+                                sort.push(person.yearOfBirth());
+                                sort.push(person.name());
+                            }
+                        } else {
+                            sort.push(person.yearOfBirth());
+                        }
+                        
+                        return sort;
+                    });
+                });
+
+                it('initially replicates the source array', function () {
+                    expect(variableSortedArray()).toEqual(sampleData);
+                });
+                
+                it('maintains sort order when adding a property', function () {
+                    removeSortProperty(false);
+                    expect(variableSortedArray()).toEqual(sorted(sampleData, variablecomparefn));
+                });
+                
+                it('replicates the source array when adding a different property', function () {
+                    addSortProperty(true);
+                    expect(variableSortedArray()).toEqual(sorted(sampleData, variablecomparefn));
+                });
+
+                it('maintains sort order when adding one property then another', function () {
+                    removeSortProperty(false);
+                    addSortProperty(true);
+                    expect(variableSortedArray()).toEqual(sorted(sampleData, variablecomparefn));
+                });
+
+                it('maintains sort order when adding one property then another (reversed)', function () {
+                    swapSortPropertyOrder(true); //this does nothing initially
+                    addSortProperty(true);
+                    removeSortProperty(false);
+                    expect(variableSortedArray()).toEqual(sorted(sampleData, variablecomparefn));
+                });
+
+                it('maintains sort order when inverting the order after adding a sort property', function () {
+                    removeSortProperty(false);
+                    addSortProperty(true);
+                    swapSortPropertyOrder(true);
+                    expect(variableSortedArray()).toEqual(sorted(sampleData, variablecomparefn));
+                });
+            });
+            
+            describe('when the sort properties can change starting with a sorted array', function () {
+                var variableSortedArray, variablecomparefn, 
+                addSortProperty, removeSortProperty, swapSortPropertyOrder;
+
+                beforeEach(function () {
+                    removeSortProperty = ko.observable(false);
+                    addSortProperty = ko.observable(false);
+                    swapSortPropertyOrder = ko.observable(false);
+
+                    variablecomparefn = function (a, b) {
+                        if (removeSortProperty()) {    
+                            if (addSortProperty()) {
+                                if (a.name() < b.name()) {
+                                    return -1;
+                                } else if (a.name() > b.name()) {
+                                    return 1;
+                                }
+                            }
+                        } else if (addSortProperty()) {
+                            if (swapSortPropertyOrder()) {
+                                if (a.name() < b.name()) {
+                                    return -1;
+                                } else if (a.name() > b.name()) {
+                                    return 1;
+                                }
+                                
+                                if (a.yearOfBirth() < b.yearOfBirth()) {
+                                    return -1;
+                                } else if (a.yearOfBirth() > b.yearOfBirth()) {
+                                    return 1;
+                                }
+                            } else {
+                                if (a.yearOfBirth() < b.yearOfBirth()) {
+                                    return -1;
+                                } else if (a.yearOfBirth() > b.yearOfBirth()) {
+                                    return 1;
+                                }
+
+                                if (a.name() < b.name()) {
+                                    return -1;
+                                } else if (a.name() > b.name()) {
+                                    return 1;
+                                }
+                            }
+                        } else {
+                            if (a.yearOfBirth() < b.yearOfBirth()) {
+                                return -1;
+                            } else if (a.yearOfBirth() > b.yearOfBirth()) {
+                                return 1;
+                            }
+                        }
+
+                        return 0;
+                    }
+
+                    variableSortedArray = sourceArray.sortBy(function(person) {
+                        var sort = [];
+                        
+                        if (removeSortProperty()) {    
+                            if (addSortProperty()) {
+                                sort.push(person.name());
+                            }
+                        } else if (addSortProperty()) {
+                            if (swapSortPropertyOrder()) {
+                                sort.push(person.name());
+                                sort.push(person.yearOfBirth());
+                            } else {
+                                sort.push(person.yearOfBirth());
+                                sort.push(person.name());
+                            }
+                        } else {
+                            sort.push(person.yearOfBirth());
+                        }
+                        
+                        return sort;
+                    });
+                });
+
+                it('initially has the right sort order', function () {
+                    expect(variableSortedArray()).toEqual(sorted(sampleData, variablecomparefn));
+                });
+                
+                it('replicates the source array when no sort properties are defined', function () {
+                    removeSortProperty(true);
+                    expect(variableSortedArray()).toEqual(sampleData);
+                });
+                
+                it('replicates the source array when swapping the sort property', function () {
+                    removeSortProperty(true);
+                    addSortProperty(true);
+                    expect(variableSortedArray()).toEqual(sorted(sampleData, variablecomparefn));
+                });
+
+                it('maintains sort order when adding a sort property', function () {
+                    addSortProperty(true);
+                    expect(variableSortedArray()).toEqual(sorted(sampleData, variablecomparefn));
+                });
+
+                it('maintains sort order when adding a sort property before the existing', function () {
+                    swapSortPropertyOrder(true); //this does nothing initially
+                    expect(variableSortedArray()).toEqual(sorted(sampleData, variablecomparefn));
+                    addSortProperty(true);
+                    expect(variableSortedArray()).toEqual(sorted(sampleData, variablecomparefn));
+                });
+
+                it('maintains sort order when inverting the order after adding a sort property', function () {
+                    addSortProperty(true);
+                    swapSortPropertyOrder(true);
                     expect(variableSortedArray()).toEqual(sorted(sampleData, variablecomparefn));
                 });
             });
@@ -311,9 +543,18 @@
                 var mappedArray,
                     mappedArrayIndex,
                     filteredArrayLeft, filteredArrayRight,
-                    sortedArrayLeft, sortedArrayRight;
+                    sortedArrayLeft, sortedArrayRight,
+                    sortActive, filterActive,
+                    includeStricterFilter, invertStricterFilter,
+                    useDifferentFilter;
 
                 beforeEach(function () {
+                    filterActive = ko.observable(false);
+                    sortActive = ko.observable(false);
+                    useDifferentFilter = ko.observable(false);
+                    includeStricterFilter = ko.observable(false);
+                    invertStricterFilter = ko.observable(false);
+                
                     function PersonView(person) {
                         this.person = person;
                     }
@@ -327,26 +568,220 @@
                     });
 
                     filteredArrayLeft = mappedArray.filter(function (view) {
-                        return view.person.isBefore1900();
+                        if(!filterActive()) {
+                            return [];
+                        }
+                        
+                        if (useDifferentFilter()) {
+                            return view.person.isBefore1930();
+                        } else if (includeStricterFilter()) {
+                            if(invertStricterFilter()) {
+                                return view.person.isBefore1900() && !view.person.isEvenYear();
+                            } else {
+                                return view.person.isBefore1900() && view.person.isEvenYear();
+                            }
+                        } else {
+                            return view.person.isBefore1900();
+                        }
                     });
 
                     filteredArrayRight = mappedArray.filter(function (view) {
-                        return !view.person.isBefore1900();
+                        if(!filterActive()) {
+                            return [];
+                        }
+                    
+                        if (useDifferentFilter()) {
+                            return !view.person.isBefore1930();
+                        } else if (includeStricterFilter()) {
+                            if(invertStricterFilter()) {
+                                return !view.person.isBefore1900() && !view.person.isEvenYear();
+                            } else {
+                                return !view.person.isBefore1900() && view.person.isEvenYear();
+                            }
+                        } else {
+                            return !view.person.isBefore1900();
+                        }
                     });
 
                     sortedArrayLeft = filteredArrayLeft.sortBy(function (view) {
-                        return [view.person.yearOfBirth(), view.person.name()];
-                    }).extend({rateLimit: 10});
+                        if(!sortActive()) {
+                            return [];
+                        }
+                        return [view.person.yearOfBirth()];
+                    });
 
                     sortedArrayRight = filteredArrayRight.sortBy(function (view) {
-                        return [view.person.yearOfBirth(), view.person.name()];
-                    }).extend({rateLimit: 10});
+                        if(!sortActive()) {
+                            return [];
+                        }
+                        return [view.person.yearOfBirth()];
+                    });
+                    
+                    sortActive(true);
+                    filterActive(true);
                 });
 
                 it('has the same amount of items in the filtered and sorted arrays', function () {
-                    expect(filteredArrayLeft().length).toEqual(sortedArrayLeft().length);
+                    expect(sortedArrayLeft().length).toEqual(filteredArrayLeft().length);
+                    expect(sortedArrayRight().length).toEqual(filteredArrayRight().length);
+                });
 
-                    expect(filteredArrayRight().length).toEqual(sortedArrayRight().length);
+                it('has the correct items in the correct order', function () {
+                    expect(sortedArrayLeft()).toEqual([
+                        mappedArrayIndex()['423 Plato'],
+                        mappedArrayIndex()['1451 Christopher Columbus'],
+                        mappedArrayIndex()['1809 Abraham Lincoln'],
+                        mappedArrayIndex()['1809 Charles Darwin'],
+                        mappedArrayIndex()['1869 Mahatma Gandhi'],
+                        mappedArrayIndex()['1874 Winston Churchill'],
+                        mappedArrayIndex()['1879 Albert Einstein'],
+                        mappedArrayIndex()['1890 Charles de Gaulle']
+                    ]);
+                    expect(sortedArrayRight()).toEqual([
+                        mappedArrayIndex()['1903 George Orwell'],
+                        mappedArrayIndex()['1910 Mother Teresa'],
+                        mappedArrayIndex()['1917 John F. Kennedy'],
+                        mappedArrayIndex()['1918 Nelson Mandela'],
+                        mappedArrayIndex()['1925 Margaret Thatcher'],
+                        mappedArrayIndex()['1926 Marilyn Monroe'],
+                        mappedArrayIndex()['1926 Queen Elizabeth II'],
+                        mappedArrayIndex()['1929 Martin Luther King'],
+                        mappedArrayIndex()['1935 Elvis Presley'],
+                        mappedArrayIndex()['1942 Muhammad Ali'],
+                        mappedArrayIndex()['1942 Paul McCartney'],
+                        mappedArrayIndex()['1955 Bill Gates'],
+                    ]);
+                });
+                
+                it('swaps matching items when reversing the source array', function () {
+                    sourceArray.reverse();                    
+                    expect(sortedArrayLeft()).toEqual([
+                        mappedArrayIndex()['423 Plato'],
+                        mappedArrayIndex()['1451 Christopher Columbus'],
+                        mappedArrayIndex()['1809 Charles Darwin'],  //1. these two with the same year will swap
+                        mappedArrayIndex()['1809 Abraham Lincoln'], //1. these two with the same year will swap
+                        mappedArrayIndex()['1869 Mahatma Gandhi'],
+                        mappedArrayIndex()['1874 Winston Churchill'],
+                        mappedArrayIndex()['1879 Albert Einstein'],
+                        mappedArrayIndex()['1890 Charles de Gaulle']
+                    ]);
+                    expect(sortedArrayRight()).toEqual([
+                        mappedArrayIndex()['1903 George Orwell'],
+                        mappedArrayIndex()['1910 Mother Teresa'],
+                        mappedArrayIndex()['1917 John F. Kennedy'],
+                        mappedArrayIndex()['1918 Nelson Mandela'],
+                        mappedArrayIndex()['1925 Margaret Thatcher'],
+                        mappedArrayIndex()['1926 Queen Elizabeth II'],  //2. these two with the same year have swapped
+                        mappedArrayIndex()['1926 Marilyn Monroe'],      //2. these two with the same year have swapped
+                        mappedArrayIndex()['1929 Martin Luther King'],
+                        mappedArrayIndex()['1935 Elvis Presley'],
+                        mappedArrayIndex()['1942 Paul McCartney'],      //1. these two with the same year have swapped
+                        mappedArrayIndex()['1942 Muhammad Ali'],        //1. these two with the same year have swapped
+                        mappedArrayIndex()['1955 Bill Gates']
+                    ]);
+                });
+                
+                it('replicates the mapped array when sorting and filtering is disabled', function () {
+                    sortActive(false);
+                    filterActive(false);
+                    expect(sortedArrayLeft()).toEqual(mappedArray());
+                    expect(sortedArrayRight()).toEqual(mappedArray());
+                });
+                
+                describe('when the filter is made stricter', function () {
+                    beforeEach(function () {
+                        includeStricterFilter(true);
+                    });
+                
+                    it('maintains the correct items in order', function () {
+                        expect(sortedArrayLeft()).toEqual([
+                            mappedArrayIndex()['1874 Winston Churchill'],
+                            mappedArrayIndex()['1890 Charles de Gaulle']
+                        ]);
+                        expect(sortedArrayRight()).toEqual([
+                            mappedArrayIndex()['1910 Mother Teresa'],
+                            mappedArrayIndex()['1918 Nelson Mandela'],
+                            mappedArrayIndex()['1926 Marilyn Monroe'],
+                            mappedArrayIndex()['1926 Queen Elizabeth II'],
+                            mappedArrayIndex()['1942 Muhammad Ali'],
+                            mappedArrayIndex()['1942 Paul McCartney']
+                        ]);
+                    });
+                });
+                
+                describe('when the stricter fitler is inverted', function () {
+                    beforeEach(function () {
+                        includeStricterFilter(true);
+                        invertStricterFilter(true);
+                    });
+                
+                    it('maintains the correct items in order', function () {
+                        expect(sortedArrayLeft()).toEqual([
+                            mappedArrayIndex()['423 Plato'],
+                            mappedArrayIndex()['1451 Christopher Columbus'],
+                            mappedArrayIndex()['1809 Abraham Lincoln'],
+                            mappedArrayIndex()['1809 Charles Darwin'],
+                            mappedArrayIndex()['1869 Mahatma Gandhi'],
+                            mappedArrayIndex()['1879 Albert Einstein'],
+                        ]);
+                        expect(sortedArrayRight()).toEqual([
+                            mappedArrayIndex()['1903 George Orwell'],
+                            mappedArrayIndex()['1917 John F. Kennedy'],
+                            mappedArrayIndex()['1925 Margaret Thatcher'],
+                            mappedArrayIndex()['1929 Martin Luther King'],
+                            mappedArrayIndex()['1935 Elvis Presley'],
+                            mappedArrayIndex()['1955 Bill Gates']
+                        ]);
+                    });
+                
+                    it('maintains the correct items in order when inverted back', function () {
+                        invertStricterFilter(false);
+                        expect(sortedArrayLeft()).toEqual([
+                            mappedArrayIndex()['1874 Winston Churchill'],
+                            mappedArrayIndex()['1890 Charles de Gaulle']
+                        ]);
+                        expect(sortedArrayRight()).toEqual([
+                            mappedArrayIndex()['1910 Mother Teresa'],
+                            mappedArrayIndex()['1918 Nelson Mandela'],
+                            mappedArrayIndex()['1926 Marilyn Monroe'],
+                            mappedArrayIndex()['1926 Queen Elizabeth II'],
+                            mappedArrayIndex()['1942 Muhammad Ali'],
+                            mappedArrayIndex()['1942 Paul McCartney']
+                        ]);
+                    });
+                });
+                
+                describe('when changing the filter value', function () {
+                    beforeEach(function () {
+                        useDifferentFilter(true);
+                    });
+                    
+                    it('maintains the correct items in order', function () {
+                        expect(sortedArrayLeft()).toEqual([
+                            mappedArrayIndex()['423 Plato'],
+                            mappedArrayIndex()['1451 Christopher Columbus'],
+                            mappedArrayIndex()['1809 Abraham Lincoln'],
+                            mappedArrayIndex()['1809 Charles Darwin'],
+                            mappedArrayIndex()['1869 Mahatma Gandhi'],
+                            mappedArrayIndex()['1874 Winston Churchill'],
+                            mappedArrayIndex()['1879 Albert Einstein'],
+                            mappedArrayIndex()['1890 Charles de Gaulle'],
+                            mappedArrayIndex()['1903 George Orwell'],
+                            mappedArrayIndex()['1910 Mother Teresa'],
+                            mappedArrayIndex()['1917 John F. Kennedy'],
+                            mappedArrayIndex()['1918 Nelson Mandela'],
+                            mappedArrayIndex()['1925 Margaret Thatcher'],
+                            mappedArrayIndex()['1926 Marilyn Monroe'],
+                            mappedArrayIndex()['1926 Queen Elizabeth II'],
+                            mappedArrayIndex()['1929 Martin Luther King']
+                        ]);
+                        expect(sortedArrayRight()).toEqual([
+                            mappedArrayIndex()['1935 Elvis Presley'],
+                            mappedArrayIndex()['1942 Muhammad Ali'],
+                            mappedArrayIndex()['1942 Paul McCartney'],
+                            mappedArrayIndex()['1955 Bill Gates'],
+                        ]);
+                    });
                 });
 
                 describe('when pushing a new item that first is in the left then in the right filtered array', function () {
@@ -355,19 +790,25 @@
                         person = new Person("Queen Victoria", 1819);
                         sourceArray.push(person);
 
-                        person.yearOfBirth(1919);
-
                         personView = mappedArrayIndex()[person.yearOfBirth() + ' ' + person.name()];
                     });
 
+                    it('has the new item in the left sorted array only', function () {
+                        expect(sortedArrayLeft().indexOf(personView)).toEqual(4);
+                        expect(sortedArrayRight().indexOf(personView)).toEqual(-1);
+                    });
+
                     it('has the new item in the right sorted array only', function () {
+                        person.yearOfBirth(1919);
                         expect(sortedArrayLeft().indexOf(personView)).toEqual(-1);
                         expect(sortedArrayRight().indexOf(personView)).toEqual(4);
                     });
 
                     it('has the same amount of items in the filtered and sorted arrays', function () {
                         expect(filteredArrayLeft().length).toEqual(sortedArrayLeft().length);
-
+                        expect(filteredArrayRight().length).toEqual(sortedArrayRight().length);
+                        person.yearOfBirth(1919);
+                        expect(filteredArrayLeft().length).toEqual(sortedArrayLeft().length);
                         expect(filteredArrayRight().length).toEqual(sortedArrayRight().length);
                     });
                 });
