@@ -1,3 +1,8 @@
+Warning
+============
+
+This fork is no longer maintained. We created a new project based on this fork, that is going to live it's own life: [knockout-transformation](https://github.com/One-com/knockout-transformations). Sorry to anybody that has a fork of this fork, you probably want to rebase your fork on the main knockout-projection project.
+
 knockout-projections
 ============
 
